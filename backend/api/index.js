@@ -58,7 +58,14 @@ app.get('/api/students', async (req, res) => {
     res.status(500).json({ error: 'Failed to fetch students' });
   }
 });
-
+app.get('/api/health', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT NOW() as time');
+    res.json({ status: 'ok', db: 'connected', time: result.rows[0].time });
+  } catch (err) {
+    res.status(500).json({ status: 'error', message: err.message });
+  }
+});
 // ── GET single student ───────────────────────────────────────────────────────
 app.get('/api/students/:id', async (req, res) => {
   try {
