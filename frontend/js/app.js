@@ -24,8 +24,8 @@ function bindEvents() {
   document.getElementById('navStudents').addEventListener('click', () => {
     document.getElementById('tableWrap').scrollIntoView({ behavior: 'smooth' });
   });
-  document.getElementById('navAdd').addEventListener('click', () => openModal());
-  document.getElementById('btnAddTop').addEventListener('click', () => openModal());
+  document.getElementById('navAdd').addEventListener('click', () => handleOpenModal());
+  document.getElementById('btnAddTop').addEventListener('click', () => handleOpenModal());
 
   // Search & filter
   document.getElementById('searchInput').addEventListener('input', debounceSearch);
@@ -97,17 +97,16 @@ function debounceSearch() {
 
 // ── Student Handlers ──────────────────────────────────────────────────────────
 
-function openModal(student = null) {
+function handleOpenModal(student = null) {
   editingId = student ? student.id : null;
-  // delegate to ui.js
-  window.openModal(student);
+  openModal(student); // openModal is defined in ui.js
 }
 
 async function handleEdit(id) {
   try {
     const student = await fetchStudent(id);
     editingId = id;
-    window.openModal(student);
+    openModal(student); // openModal is defined in ui.js
   } catch (_) {
     showToast('Failed to load student', 'error');
   }
