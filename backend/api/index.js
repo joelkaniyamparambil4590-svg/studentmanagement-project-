@@ -11,7 +11,6 @@ app.use(express.json());
 
 // Serve the frontend folder
 app.use(express.static(path.join(__dirname, '../../frontend')));
-
 // ── Init DB ──────────────────────────────────────────────────────────────────
 async function initDB() {
   await pool.query(`
