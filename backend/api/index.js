@@ -24,7 +24,7 @@ async function initDB() {
   }
 
   await pool.query(`
-    CREATE TABLE IF NOT EXISTS students (
+    CREATE TABLE IF NOT EXISTS public.students (
       id         SERIAL PRIMARY KEY,
       name       VARCHAR(100)  NOT NULL,
       email      VARCHAR(150)  UNIQUE NOT NULL,
@@ -40,19 +40,42 @@ async function initDB() {
   `);
 }
 
+let dbInitialized = false;
 let dbInitError = null;
+let dbReadyPromise = null;
 
-const dbReady = initDB().catch((error) => {
-  dbInitError = error;
-  console.error('Database initialization failed:', error);
-});
+async function ensureDatabaseInitialized() {
+  if (dbInitialized) {
+    return;
+  }
+
+  if (!dbReadyPromise) {
+    dbReadyPromise = initDB()
+      .then(() => {
+        dbInitialized = true;
+        dbInitError = null;
+      })
+      .catch((error) => {
+        dbInitError = error;
+        console.error('Database initialization failed:', error);
+        throw error;
+      })
+      .finally(() => {
+        if (!dbInitialized) {
+          dbReadyPromise = null;
+        }
+      });
+  }
+
+  return dbReadyPromise;
+}
 
 async function ensureDatabaseReady(_req, res, next) {
-  await dbReady;
-
-  if (dbInitError) {
+  try {
+    await ensureDatabaseInitialized();
+  } catch (error) {
     return res.status(503).json({
-      error: dbInitError.message || 'Database is not ready',
+      error: error.message || 'Database is not ready',
     });
   }
 
@@ -67,13 +90,13 @@ function getTokenFromRequest(req) {
 }
 
 app.get('/api/health', async (_req, res) => {
-  await dbReady;
-
-  if (dbInitError) {
+  try {
+    await ensureDatabaseInitialized();
+  } catch (error) {
     return res.status(503).json({
       status: 'error',
       db: 'unavailable',
-      message: dbInitError.message,
+      message: error.message,
     });
   }
 
@@ -84,6 +107,8 @@ app.get('/api/health', async (_req, res) => {
     return res.status(500).json({ status: 'error', db: 'unavailable', message: error.message });
   }
 });
+
+ensureDatabaseInitialized().catch(() => {});
 
 app.post('/api/login', async (req, res) => {
   const { username = '', password = '' } = req.body || {};
@@ -126,7 +151,7 @@ app.use('/api/stats', ensureDatabaseReady);
 app.get('/api/students', async (req, res) => {
   try {
     const { search, grade } = req.query;
-    let query = 'SELECT * FROM students';
+    let query = 'SELECT * FROM public.students';
     const params = [];
     const conditions = [];
 
@@ -156,7 +181,7 @@ app.get('/api/students', async (req, res) => {
 
 app.get('/api/students/:id', async (req, res) => {
   try {
-    const { rows } = await pool.query('SELECT * FROM students WHERE id = $1', [req.params.id]);
+    const { rows } = await pool.query('SELECT * FROM public.students WHERE id = $1', [req.params.id]);
     if (!rows.length) {
       return res.status(404).json({ error: 'Student not found' });
     }
@@ -176,7 +201,7 @@ app.post('/api/students', async (req, res) => {
 
   try {
     const { rows } = await pool.query(
-      `INSERT INTO students (name, email, phone, grade, section, age, gender, address, joined_on)
+      `INSERT INTO public.students (name, email, phone, grade, section, age, gender, address, joined_on)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
       [name, email, phone || null, grade, section || null, age || null, gender || null, address || null, joined_on || null]
     );
@@ -201,7 +226,7 @@ app.put('/api/students/:id', async (req, res) => {
 
   try {
     const { rows } = await pool.query(
-      `UPDATE students
+      `UPDATE public.students
        SET name = $1, email = $2, phone = $3, grade = $4, section = $5,
            age = $6, gender = $7, address = $8, joined_on = $9
        WHERE id = $10
@@ -226,7 +251,7 @@ app.put('/api/students/:id', async (req, res) => {
 
 app.delete('/api/students/:id', async (req, res) => {
   try {
-    const { rowCount } = await pool.query('DELETE FROM students WHERE id = $1', [req.params.id]);
+    const { rowCount } = await pool.query('DELETE FROM public.students WHERE id = $1', [req.params.id]);
     if (!rowCount) {
       return res.status(404).json({ error: 'Student not found' });
     }
@@ -241,8 +266,8 @@ app.delete('/api/students/:id', async (req, res) => {
 app.get('/api/stats', async (_req, res) => {
   try {
     const [total, byGrade] = await Promise.all([
-      pool.query('SELECT COUNT(*) FROM students'),
-      pool.query('SELECT grade, COUNT(*) AS count FROM students GROUP BY grade ORDER BY grade'),
+      pool.query('SELECT COUNT(*) FROM public.students'),
+      pool.query('SELECT grade, COUNT(*) AS count FROM public.students GROUP BY grade ORDER BY grade'),
     ]);
 
     return res.json({
