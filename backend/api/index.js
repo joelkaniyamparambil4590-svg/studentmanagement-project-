@@ -5,11 +5,12 @@ require('dotenv').config({ path: path.join(__dirname, '../.env') });
 
 const { pool, getDatabaseConfigError } = require('./db');
 const {
-  authenticateCredentials,
+  canManageAdminPrivileges,
   createToken,
   getAuthConfig,
+  hashPassword,
   requireAuth,
-  verifyToken,
+  verifyPassword,
 } = require('./auth');
 
 const app = express();
@@ -18,30 +19,70 @@ const frontendDir = path.join(__dirname, '../../frontend');
 app.use(cors());
 app.use(express.json());
 
+function getTokenFromRequest(req) {
+  const authHeader = req.headers.authorization;
+  return authHeader && authHeader.startsWith('Bearer ')
+    ? authHeader.slice('Bearer '.length).trim()
+    : null;
+}
+
+function sanitizeUser(row) {
+  return {
+    id: row.id,
+    username: row.username,
+    isAdmin: Boolean(row.is_admin),
+    createdAt: row.created_at,
+  };
+}
+
 async function initDB() {
   if (!pool) {
     throw getDatabaseConfigError();
   }
 
   await pool.query(`
-    CREATE TABLE IF NOT EXISTS public.students (
-      id         SERIAL PRIMARY KEY,
-      name       VARCHAR(100)  NOT NULL,
-      email      VARCHAR(150)  UNIQUE NOT NULL,
-      phone      VARCHAR(20),
-      grade      VARCHAR(20)   NOT NULL,
-      section    VARCHAR(10),
-      age        INTEGER,
-      gender     VARCHAR(10),
-      address    TEXT,
-      joined_on  DATE          DEFAULT CURRENT_DATE,
-      created_at TIMESTAMPTZ   DEFAULT NOW()
+    CREATE TABLE IF NOT EXISTS public.users (
+      id SERIAL PRIMARY KEY,
+      username VARCHAR(80) UNIQUE NOT NULL,
+      password_hash TEXT NOT NULL,
+      is_admin BOOLEAN NOT NULL DEFAULT FALSE,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
   `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS public.students (
+      id SERIAL PRIMARY KEY,
+      name VARCHAR(100) NOT NULL,
+      email VARCHAR(150) UNIQUE NOT NULL,
+      phone VARCHAR(20),
+      grade VARCHAR(20) NOT NULL,
+      section VARCHAR(10),
+      age INTEGER,
+      gender VARCHAR(10),
+      address TEXT,
+      joined_on DATE DEFAULT CURRENT_DATE,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    );
+  `);
+
+  await syncAdminUser();
+}
+
+async function syncAdminUser() {
+  const authConfig = getAuthConfig();
+  const passwordHash = hashPassword(authConfig.password);
+
+  await pool.query(
+    `INSERT INTO public.users (username, password_hash, is_admin)
+     VALUES ($1, $2, TRUE)
+     ON CONFLICT (username)
+     DO UPDATE SET password_hash = EXCLUDED.password_hash, is_admin = TRUE`,
+    [authConfig.username, passwordHash]
+  );
 }
 
 let dbInitialized = false;
-let dbInitError = null;
 let dbReadyPromise = null;
 
 async function ensureDatabaseInitialized() {
@@ -53,10 +94,8 @@ async function ensureDatabaseInitialized() {
     dbReadyPromise = initDB()
       .then(() => {
         dbInitialized = true;
-        dbInitError = null;
       })
       .catch((error) => {
-        dbInitError = error;
         console.error('Database initialization failed:', error);
         throw error;
       })
@@ -82,16 +121,40 @@ async function ensureDatabaseReady(_req, res, next) {
   return next();
 }
 
-function getTokenFromRequest(req) {
-  const authHeader = req.headers.authorization;
-  return authHeader && authHeader.startsWith('Bearer ')
-    ? authHeader.slice('Bearer '.length).trim()
-    : null;
+async function requireAdminUser(req, res, next) {
+  try {
+    const { rows } = await pool.query(
+      'SELECT id, username, is_admin, created_at FROM public.users WHERE id = $1',
+      [req.user.id]
+    );
+
+    const user = rows[0];
+    if (!user) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    if (!user.is_admin) {
+      return res.status(403).json({ error: 'Admin access required' });
+    }
+
+    req.currentUser = sanitizeUser(user);
+    return next();
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ error: 'Failed to verify user access' });
+  }
 }
 
 app.get('/api/health', async (_req, res) => {
   try {
     await ensureDatabaseInitialized();
+    const result = await pool.query('SELECT NOW() AS time');
+
+    return res.json({
+      status: 'ok',
+      db: 'connected',
+      time: result.rows[0].time,
+    });
   } catch (error) {
     return res.status(503).json({
       status: 'error',
@@ -99,54 +162,166 @@ app.get('/api/health', async (_req, res) => {
       message: error.message,
     });
   }
-
-  try {
-    const result = await pool.query('SELECT NOW() AS time');
-    return res.json({ status: 'ok', db: 'connected', time: result.rows[0].time });
-  } catch (error) {
-    return res.status(500).json({ status: 'error', db: 'unavailable', message: error.message });
-  }
-});
-
-ensureDatabaseInitialized().catch(() => {});
-
-app.post('/api/login', async (req, res) => {
-  const { username = '', password = '' } = req.body || {};
-
-  if (!authenticateCredentials(username, password)) {
-    return res.status(401).json({ error: 'Invalid username or password' });
-  }
-
-  const token = createToken(username);
-  return res.json({ token, username });
-});
-
-app.get('/api/session', (req, res) => {
-  const payload = verifyToken(getTokenFromRequest(req));
-
-  if (!payload) {
-    return res.status(401).json({ error: 'Unauthorized' });
-  }
-
-  return res.json({ username: payload.username });
 });
 
 app.get('/api/config', (_req, res) => {
   const authConfig = getAuthConfig();
-  res.json({
-    authConfigured: Boolean(
-      process.env.ADMIN_USERNAME &&
-      process.env.ADMIN_PASSWORD &&
-      (process.env.AUTH_SECRET || process.env.JWT_SECRET)
-    ),
+
+  return res.json({
+    authConfigured: Boolean(authConfig.secret),
     defaultAdminUsername: authConfig.username,
+    adminPrivilegeChangesEnabled: canManageAdminPrivileges(),
   });
 });
 
-app.use('/api/students', requireAuth);
-app.use('/api/stats', requireAuth);
-app.use('/api/students', ensureDatabaseReady);
-app.use('/api/stats', ensureDatabaseReady);
+app.post('/api/login', ensureDatabaseReady, async (req, res) => {
+  const { username = '', password = '' } = req.body || {};
+
+  if (!username.trim() || !password) {
+    return res.status(400).json({ error: 'Username and password are required' });
+  }
+
+  try {
+    const { rows } = await pool.query(
+      'SELECT * FROM public.users WHERE LOWER(username) = LOWER($1) LIMIT 1',
+      [username.trim()]
+    );
+
+    const user = rows[0];
+    if (!user || !verifyPassword(password, user.password_hash)) {
+      return res.status(401).json({ error: 'Invalid username or password' });
+    }
+
+    const token = createToken(user);
+    return res.json({
+      token,
+      username: user.username,
+      isAdmin: Boolean(user.is_admin),
+    });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ error: 'Login failed' });
+  }
+});
+
+app.get('/api/session', requireAuth, ensureDatabaseReady, async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      'SELECT id, username, is_admin, created_at FROM public.users WHERE id = $1',
+      [req.user.id]
+    );
+
+    const user = rows[0];
+    if (!user) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    return res.json({
+      ...sanitizeUser(user),
+      canManageAdminPrivileges: canManageAdminPrivileges(),
+    });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ error: 'Failed to load session' });
+  }
+});
+
+app.use('/api/students', requireAuth, ensureDatabaseReady);
+app.use('/api/stats', requireAuth, ensureDatabaseReady);
+app.use('/api/users', requireAuth, ensureDatabaseReady);
+
+app.get('/api/users', requireAdminUser, async (_req, res) => {
+  try {
+    const { rows } = await pool.query(
+      'SELECT id, username, is_admin, created_at FROM public.users ORDER BY username ASC'
+    );
+
+    return res.json({
+      users: rows.map(sanitizeUser),
+      adminPrivilegeChangesEnabled: canManageAdminPrivileges(),
+    });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ error: 'Failed to fetch users' });
+  }
+});
+
+app.post('/api/users', requireAdminUser, async (req, res) => {
+  const {
+    username = '',
+    password = '',
+    isAdmin = false,
+  } = req.body || {};
+
+  const trimmedUsername = username.trim();
+  if (!trimmedUsername || !password) {
+    return res.status(400).json({ error: 'Username and password are required' });
+  }
+
+  if (password.length < 6) {
+    return res.status(400).json({ error: 'Password must be at least 6 characters long' });
+  }
+
+  if (isAdmin && !canManageAdminPrivileges()) {
+    return res.status(403).json({
+      error: 'Admin privileges can only be changed when ALLOW_ADMIN_PRIVILEGE_CHANGES=true',
+    });
+  }
+
+  try {
+    const { rows } = await pool.query(
+      `INSERT INTO public.users (username, password_hash, is_admin)
+       VALUES ($1, $2, $3)
+       RETURNING id, username, is_admin, created_at`,
+      [trimmedUsername, hashPassword(password), Boolean(isAdmin)]
+    );
+
+    return res.status(201).json(sanitizeUser(rows[0]));
+  } catch (error) {
+    if (error.code === '23505') {
+      return res.status(409).json({ error: 'Username already exists' });
+    }
+
+    console.error(error);
+    return res.status(500).json({ error: 'Failed to create user' });
+  }
+});
+
+app.patch('/api/users/:id/admin', requireAdminUser, async (req, res) => {
+  if (!canManageAdminPrivileges()) {
+    return res.status(403).json({
+      error: 'Admin privileges can only be changed when ALLOW_ADMIN_PRIVILEGE_CHANGES=true',
+    });
+  }
+
+  const { isAdmin } = req.body || {};
+  if (typeof isAdmin !== 'boolean') {
+    return res.status(400).json({ error: 'isAdmin must be true or false' });
+  }
+
+  if (Number(req.params.id) === req.user.id && !isAdmin) {
+    return res.status(400).json({ error: 'You cannot remove your own admin access' });
+  }
+
+  try {
+    const { rows } = await pool.query(
+      `UPDATE public.users
+       SET is_admin = $1
+       WHERE id = $2
+       RETURNING id, username, is_admin, created_at`,
+      [isAdmin, req.params.id]
+    );
+
+    if (!rows.length) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    return res.json(sanitizeUser(rows[0]));
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ error: 'Failed to update user privileges' });
+  }
+});
 
 app.get('/api/students', async (req, res) => {
   try {
@@ -303,6 +478,8 @@ app.get('*', (req, res) => {
 
   return res.sendFile(path.join(frontendDir, 'index.html'));
 });
+
+ensureDatabaseInitialized().catch(() => {});
 
 if (require.main === module) {
   const port = process.env.PORT || 3000;

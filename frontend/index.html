@@ -3,187 +3,219 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>EduTrack — Student Management</title>
+  <title>EduTrack - Student Management</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="css/style.css" />
 </head>
 <body>
-
-<div class="layout">
-
-  <!-- ── Sidebar ── -->
-  <aside class="sidebar">
-    <div class="sidebar-brand">
-      <div class="logo">
-        <div class="logo-icon">🎓</div>
-        EduTrack
-      </div>
-      <div class="tagline">Student Management System</div>
-    </div>
-    <nav class="sidebar-nav">
-      <div class="nav-label">Menu</div>
-      <div class="nav-item active" id="navStudents">
-        <span class="icon">👥</span> Students
-      </div>
-      <div class="nav-item" id="navAdd">
-        <span class="icon">➕</span> Add Student
-      </div>
-    </nav>
-    <div class="sidebar-footer">EduTrack v1.0 &bull; School Portal</div>
-  </aside>
-
-  <!-- ── Main ── -->
-  <div class="main">
-
-    <!-- Topbar -->
-    <header class="topbar">
-      <div>
-        <div class="topbar-title">Student Directory</div>
-        <div class="topbar-sub">Manage and view all enrolled students</div>
-      </div>
-      <div class="topbar-actions">
-        <span class="user-chip" id="userChip">Admin</span>
-        <button class="btn btn-ghost" id="btnLogout">Logout</button>
-        <button class="btn btn-primary" id="btnAddTop">
-          <span>＋</span> Add Student
-        </button>
-      </div>
-    </header>
-
-    <!-- Content -->
-    <main class="content">
-
-      <!-- Stats -->
-      <div class="stats-grid" id="statsGrid">
-        <div class="stat-card">
-          <div class="stat-label">Total Students</div>
-          <div class="stat-value" id="statTotal">—</div>
-          <div class="stat-badge">Enrolled</div>
+  <div class="layout">
+    <aside class="sidebar">
+      <div class="sidebar-brand">
+        <div class="logo">
+          <div class="logo-icon">ST</div>
+          EduTrack
         </div>
+        <div class="tagline">Student Management System</div>
       </div>
 
-      <!-- Toolbar -->
-      <div class="toolbar">
-        <div class="search-wrap">
-          <span class="search-icon">🔍</span>
-          <input
-            class="search-input"
-            type="text"
-            id="searchInput"
-            placeholder="Search by name or email…"
-          />
+      <nav class="sidebar-nav">
+        <div class="nav-label">Menu</div>
+        <div class="nav-item active" id="navStudents">
+          <span class="icon">S</span> Students
         </div>
-        <select class="filter-select" id="gradeFilter">
-          <option value="">All Grades</option>
-          <option>Grade 1</option><option>Grade 2</option><option>Grade 3</option>
-          <option>Grade 4</option><option>Grade 5</option><option>Grade 6</option>
-          <option>Grade 7</option><option>Grade 8</option><option>Grade 9</option>
-          <option>Grade 10</option><option>Grade 11</option><option>Grade 12</option>
-        </select>
-        <div class="toolbar-right">
-          <span class="count-badge" id="countBadge">0 students</span>
+        <div class="nav-item" id="navAdd">
+          <span class="icon">+</span> Add Student
         </div>
-      </div>
+        <div class="nav-item" id="navUsers">
+          <span class="icon">U</span> Users
+        </div>
+      </nav>
 
-      <!-- Table -->
-      <div class="table-wrap" id="tableWrap">
-        <div class="loading"><div class="spinner"></div> Loading students…</div>
-      </div>
+      <div class="sidebar-footer">EduTrack v1.0 • School Portal</div>
+    </aside>
 
-    </main>
-  </div>
-</div>
+    <div class="main">
+      <header class="topbar">
+        <div>
+          <div class="topbar-title">Student Directory</div>
+          <div class="topbar-sub">Manage students, users, and access in one place</div>
+        </div>
+        <div class="topbar-actions">
+          <span class="user-chip" id="userChip">User</span>
+          <button class="btn btn-ghost" id="btnLogout">Logout</button>
+          <button class="btn btn-primary" id="btnAddTop">
+            <span>+</span> Add Student
+          </button>
+        </div>
+      </header>
 
-<!-- ── Add / Edit Modal ── -->
-<div class="modal-overlay" id="studentModal">
-  <div class="modal">
-    <div class="modal-header">
-      <div>
-        <div class="modal-title" id="modalTitle">Add New Student</div>
-        <div class="modal-sub"  id="modalSub">Fill in the student details below</div>
-      </div>
-      <button class="modal-close" id="modalClose">✕</button>
-    </div>
-    <div class="modal-body">
-      <div class="form-grid">
-        <div class="field form-full">
-          <label>Full Name <span class="req">*</span></label>
-          <input type="text" id="f_name" placeholder="e.g. Arjun Sharma" />
+      <main class="content">
+        <div class="stats-grid" id="statsGrid">
+          <div class="stat-card">
+            <div class="stat-label">Total Students</div>
+            <div class="stat-value" id="statTotal">-</div>
+            <div class="stat-badge">Enrolled</div>
+          </div>
         </div>
-        <div class="field">
-          <label>Email <span class="req">*</span></label>
-          <input type="email" id="f_email" placeholder="arjun@school.edu" />
-        </div>
-        <div class="field">
-          <label>Phone</label>
-          <input type="tel" id="f_phone" placeholder="+91 98765 43210" />
-        </div>
-        <div class="field">
-          <label>Grade <span class="req">*</span></label>
-          <select id="f_grade">
-            <option value="">Select grade</option>
+
+        <div class="toolbar">
+          <div class="search-wrap">
+            <span class="search-icon">/</span>
+            <input
+              class="search-input"
+              type="text"
+              id="searchInput"
+              placeholder="Search by name or email..."
+            />
+          </div>
+
+          <select class="filter-select" id="gradeFilter">
+            <option value="">All Grades</option>
             <option>Grade 1</option><option>Grade 2</option><option>Grade 3</option>
             <option>Grade 4</option><option>Grade 5</option><option>Grade 6</option>
             <option>Grade 7</option><option>Grade 8</option><option>Grade 9</option>
             <option>Grade 10</option><option>Grade 11</option><option>Grade 12</option>
           </select>
+
+          <div class="toolbar-right">
+            <span class="count-badge" id="countBadge">0 students</span>
+          </div>
         </div>
-        <div class="field">
-          <label>Section</label>
-          <select id="f_section">
-            <option value="">Select section</option>
-            <option>A</option><option>B</option><option>C</option><option>D</option>
-          </select>
+
+        <div class="table-wrap" id="tableWrap">
+          <div class="loading"><div class="spinner"></div> Loading students...</div>
         </div>
-        <div class="field">
-          <label>Age</label>
-          <input type="number" id="f_age" placeholder="15" min="3" max="25" />
+
+        <section class="panel hidden" id="userAdminSection">
+          <div class="panel-head">
+            <div>
+              <div class="panel-title">Users</div>
+              <div class="panel-sub" id="userAdminSub">Create logins and review access.</div>
+            </div>
+            <span class="count-badge" id="userCountBadge">0 users</span>
+          </div>
+
+          <div class="user-admin-grid">
+            <form class="mini-form" id="userForm">
+              <div class="mini-form-title">Add User</div>
+
+              <div class="field">
+                <label>Username</label>
+                <input type="text" id="u_username" placeholder="teacher01" autocomplete="username" />
+              </div>
+
+              <div class="field">
+                <label>Password</label>
+                <input type="password" id="u_password" placeholder="Minimum 6 characters" autocomplete="new-password" />
+              </div>
+
+              <label class="checkbox-row" id="adminCheckboxRow">
+                <input type="checkbox" id="u_is_admin" />
+                <span>Grant admin access</span>
+              </label>
+
+              <div class="mini-form-note" id="adminNote">Admin changes are controlled by environment configuration.</div>
+              <button class="btn btn-primary" type="submit" id="userSaveBtn">Create User</button>
+            </form>
+
+            <div class="table-wrap user-table-wrap">
+              <div id="usersWrap" class="loading"><div class="spinner"></div> Loading users...</div>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="studentModal">
+    <div class="modal">
+      <div class="modal-header">
+        <div>
+          <div class="modal-title" id="modalTitle">Add New Student</div>
+          <div class="modal-sub" id="modalSub">Fill in the student details below</div>
         </div>
-        <div class="field">
-          <label>Gender</label>
-          <select id="f_gender">
-            <option value="">Select</option>
-            <option value="Male">Male</option>
-            <option value="Female">Female</option>
-            <option value="Other">Other</option>
-          </select>
-        </div>
-        <div class="field">
-          <label>Joined On</label>
-          <input type="date" id="f_joined" />
-        </div>
-        <div class="field form-full">
-          <label>Address</label>
-          <textarea id="f_address" placeholder="Street, City, State…"></textarea>
+        <button class="modal-close" id="modalClose">x</button>
+      </div>
+
+      <div class="modal-body">
+        <div class="form-grid">
+          <div class="field form-full">
+            <label>Full Name <span class="req">*</span></label>
+            <input type="text" id="f_name" placeholder="e.g. Arjun Sharma" />
+          </div>
+          <div class="field">
+            <label>Email <span class="req">*</span></label>
+            <input type="email" id="f_email" placeholder="arjun@school.edu" />
+          </div>
+          <div class="field">
+            <label>Phone</label>
+            <input type="tel" id="f_phone" placeholder="+91 98765 43210" />
+          </div>
+          <div class="field">
+            <label>Grade <span class="req">*</span></label>
+            <select id="f_grade">
+              <option value="">Select grade</option>
+              <option>Grade 1</option><option>Grade 2</option><option>Grade 3</option>
+              <option>Grade 4</option><option>Grade 5</option><option>Grade 6</option>
+              <option>Grade 7</option><option>Grade 8</option><option>Grade 9</option>
+              <option>Grade 10</option><option>Grade 11</option><option>Grade 12</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Section</label>
+            <select id="f_section">
+              <option value="">Select section</option>
+              <option>A</option><option>B</option><option>C</option><option>D</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Age</label>
+            <input type="number" id="f_age" placeholder="15" min="3" max="25" />
+          </div>
+          <div class="field">
+            <label>Gender</label>
+            <select id="f_gender">
+              <option value="">Select</option>
+              <option value="Male">Male</option>
+              <option value="Female">Female</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Joined On</label>
+            <input type="date" id="f_joined" />
+          </div>
+          <div class="field form-full">
+            <label>Address</label>
+            <textarea id="f_address" placeholder="Street, City, State..."></textarea>
+          </div>
         </div>
       </div>
-    </div>
-    <div class="modal-footer">
-      <button class="btn btn-ghost" id="modalCancel">Cancel</button>
-      <button class="btn btn-primary" id="modalSave">Save Student</button>
-    </div>
-  </div>
-</div>
 
-<!-- ── Confirm Delete ── -->
-<div class="confirm-overlay" id="confirmOverlay">
-  <div class="confirm-box">
-    <div class="confirm-icon">🗑️</div>
-    <div class="confirm-title">Delete Student?</div>
-    <div class="confirm-msg" id="confirmMsg">This action cannot be undone.</div>
-    <div class="confirm-actions">
-      <button class="btn btn-ghost" id="confirmCancel">Cancel</button>
-      <button class="btn btn-danger" id="confirmOk">Delete</button>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" id="modalCancel">Cancel</button>
+        <button class="btn btn-primary" id="modalSave">Save Student</button>
+      </div>
     </div>
   </div>
-</div>
 
-<!-- ── Toast ── -->
-<div class="toast-container" id="toastContainer"></div>
+  <div class="confirm-overlay" id="confirmOverlay">
+    <div class="confirm-box">
+      <div class="confirm-icon">!</div>
+      <div class="confirm-title">Delete Student?</div>
+      <div class="confirm-msg" id="confirmMsg">This action cannot be undone.</div>
+      <div class="confirm-actions">
+        <button class="btn btn-ghost" id="confirmCancel">Cancel</button>
+        <button class="btn btn-danger" id="confirmOk">Delete</button>
+      </div>
+    </div>
+  </div>
 
-<script src="js/api.js"></script>
-<script src="js/ui.js"></script>
-<script src="js/app.js"></script>
+  <div class="toast-container" id="toastContainer"></div>
+
+  <script src="js/api.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/app.js"></script>
 </body>
 </html>

@@ -1,14 +1,15 @@
 /**
  * app.js
  * Main application controller.
- * Wires together api.js and ui.js with auth/session handling.
  */
 
 let allStudents = [];
+let allUsers = [];
 let editingId = null;
 let deleteId = null;
 let currentPage = 1;
 let searchTimer = null;
+let currentSession = null;
 
 async function init() {
   if (!localStorage.getItem('edu_token')) {
@@ -17,20 +18,29 @@ async function init() {
   }
 
   try {
-    const session = await fetchSession();
-    updateSessionUI(session.username);
+    currentSession = await fetchSession();
+    updateSessionUI(currentSession);
+    configureUserAdminSection(currentSession);
   } catch (_error) {
     return;
   }
 
   bindEvents();
-  await Promise.all([loadStats(), loadStudents()]);
+
+  const work = [loadStats(), loadStudents()];
+  if (currentSession.isAdmin) {
+    work.push(loadUsers());
+  }
+
+  await Promise.all(work);
 }
 
-function updateSessionUI(username) {
+function updateSessionUI(session) {
   const userChip = document.getElementById('userChip');
   if (userChip) {
-    userChip.textContent = username || localStorage.getItem('edu_username') || 'Admin';
+    userChip.textContent = session.isAdmin
+      ? `${session.username} (admin)`
+      : session.username;
   }
 }
 
@@ -42,6 +52,16 @@ function bindEvents() {
   document.getElementById('navAdd').addEventListener('click', () => handleOpenModal());
   document.getElementById('btnAddTop').addEventListener('click', () => handleOpenModal());
   document.getElementById('btnLogout').addEventListener('click', handleLogout);
+
+  const navUsers = document.getElementById('navUsers');
+  if (navUsers) {
+    navUsers.addEventListener('click', () => {
+      const section = document.getElementById('userAdminSection');
+      if (!section.classList.contains('hidden')) {
+        section.scrollIntoView({ behavior: 'smooth' });
+      }
+    });
+  }
 
   document.getElementById('searchInput').addEventListener('input', debounceSearch);
   document.getElementById('gradeFilter').addEventListener('change', debounceSearch);
@@ -77,6 +97,11 @@ function bindEvents() {
     }
   });
 
+  const userForm = document.getElementById('userForm');
+  if (userForm) {
+    userForm.addEventListener('submit', handleCreateUser);
+  }
+
   document.addEventListener('keydown', (event) => {
     if (event.key === 'Escape') {
       closeModal();
@@ -106,6 +131,27 @@ async function loadStudents() {
     renderTable(allStudents, currentPage, handleEdit, handleAskDelete);
   } catch (error) {
     showTableError(error.message || 'Failed to load students. Check your connection.');
+  }
+}
+
+async function loadUsers() {
+  if (!currentSession?.isAdmin) {
+    return;
+  }
+
+  showUsersLoading();
+
+  try {
+    const data = await fetchUsers();
+    allUsers = data.users;
+    renderUsersTable(
+      allUsers,
+      data.adminPrivilegeChangesEnabled,
+      currentSession.id,
+      handleToggleAdmin
+    );
+  } catch (error) {
+    showUsersError(error.message || 'Failed to load users.');
   }
 }
 
@@ -155,6 +201,46 @@ async function handleSave() {
   } catch (error) {
     showToast(error.message, 'error');
   }
+}
+
+async function handleCreateUser(event) {
+  event.preventDefault();
+
+  const payload = getUserFormData();
+  if (!payload.username || !payload.password) {
+    showToast('Username and password are required', 'error');
+    return;
+  }
+
+  const saveButton = document.getElementById('userSaveBtn');
+  saveButton.disabled = true;
+
+  try {
+    await createUser(payload);
+    resetUserForm();
+    showToast('User created successfully', 'success');
+    await loadUsers();
+  } catch (error) {
+    showToast(error.message, 'error');
+  } finally {
+    saveButton.disabled = false;
+  }
+}
+
+async function handleToggleAdmin(userId, isAdmin) {
+  try {
+    await updateUserAdmin(userId, isAdmin);
+    showToast('User privileges updated', 'success');
+    await Promise.all([loadUsers(), refreshSession()]);
+  } catch (error) {
+    showToast(error.message, 'error');
+  }
+}
+
+async function refreshSession() {
+  currentSession = await fetchSession();
+  updateSessionUI(currentSession);
+  configureUserAdminSection(currentSession);
 }
 
 function handleAskDelete(id, name) {

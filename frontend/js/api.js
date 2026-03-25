@@ -73,3 +73,21 @@ async function fetchStats() {
 async function fetchSession() {
   return apiFetch('/session');
 }
+
+async function fetchUsers() {
+  return apiFetch('/users');
+}
+
+async function createUser(payload) {
+  return apiFetch('/users', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+async function updateUserAdmin(id, isAdmin) {
+  return apiFetch(`/users/${id}/admin`, {
+    method: 'PATCH',
+    body: JSON.stringify({ isAdmin }),
+  });
+}

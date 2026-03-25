@@ -42,13 +42,14 @@ student-mgmt-v2/
 
 2. Create `backend/.env` from `backend/.env.example`.
 
-3. Add your Neon connection string and admin auth values:
+3. Add your Neon connection string and auth values:
 
    ```env
    DATABASE_URL=postgresql://...
    ADMIN_USERNAME=admin
    ADMIN_PASSWORD=your-password
    AUTH_SECRET=your-long-random-secret
+   ALLOW_ADMIN_PRIVILEGE_CHANGES=false
    PORT=3000
    ```
 
@@ -68,6 +69,7 @@ Add these environment variables in Vercel:
 - `ADMIN_USERNAME`
 - `ADMIN_PASSWORD`
 - `AUTH_SECRET`
+- `ALLOW_ADMIN_PRIVILEGE_CHANGES`
 
 Routing behavior:
 

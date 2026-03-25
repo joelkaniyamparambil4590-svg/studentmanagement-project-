@@ -2,12 +2,18 @@ const crypto = require('crypto');
 
 const TOKEN_SEPARATOR = '.';
 const TOKEN_TTL_SECONDS = 60 * 60 * 12;
+const SCRYPT_KEY_LENGTH = 64;
+
+function normalizeBoolean(value) {
+  return ['1', 'true', 'yes', 'on'].includes(String(value || '').toLowerCase());
+}
 
 function getAuthConfig() {
   return {
     username: process.env.ADMIN_USERNAME || 'admin',
     password: process.env.ADMIN_PASSWORD || 'admin123',
     secret: process.env.AUTH_SECRET || process.env.JWT_SECRET || 'change-me-in-production',
+    allowAdminPrivilegeChanges: normalizeBoolean(process.env.ALLOW_ADMIN_PRIVILEGE_CHANGES),
   };
 }
 
@@ -26,10 +32,28 @@ function signPayload(payload, secret) {
   return crypto.createHmac('sha256', secret).update(payload).digest('hex');
 }
 
-function createToken(username) {
+function hashPassword(password) {
+  const salt = crypto.randomBytes(16).toString('hex');
+  const hash = crypto.scryptSync(password, salt, SCRYPT_KEY_LENGTH).toString('hex');
+  return `${salt}:${hash}`;
+}
+
+function verifyPassword(password, storedHash) {
+  if (!storedHash || !storedHash.includes(':')) {
+    return false;
+  }
+
+  const [salt, originalHash] = storedHash.split(':');
+  const candidateHash = crypto.scryptSync(password, salt, SCRYPT_KEY_LENGTH).toString('hex');
+  return timingSafeEqual(originalHash, candidateHash);
+}
+
+function createToken(user) {
   const { secret } = getAuthConfig();
   const payload = Buffer.from(JSON.stringify({
-    username,
+    id: user.id,
+    username: user.username,
+    isAdmin: Boolean(user.is_admin ?? user.isAdmin),
     exp: Math.floor(Date.now() / 1000) + TOKEN_TTL_SECONDS,
   })).toString('base64url');
 
@@ -69,11 +93,6 @@ function extractBearerToken(headerValue) {
   return headerValue.slice('Bearer '.length).trim();
 }
 
-function authenticateCredentials(username, password) {
-  const config = getAuthConfig();
-  return timingSafeEqual(username, config.username) && timingSafeEqual(password, config.password);
-}
-
 function requireAuth(req, res, next) {
   const token = extractBearerToken(req.headers.authorization);
   const payload = verifyToken(token);
@@ -86,10 +105,26 @@ function requireAuth(req, res, next) {
   return next();
 }
 
+function requireAdmin(req, res, next) {
+  if (!req.user?.isAdmin) {
+    return res.status(403).json({ error: 'Admin access required' });
+  }
+
+  return next();
+}
+
+function canManageAdminPrivileges() {
+  return getAuthConfig().allowAdminPrivilegeChanges;
+}
+
 module.exports = {
-  authenticateCredentials,
+  canManageAdminPrivileges,
   createToken,
+  extractBearerToken,
   getAuthConfig,
+  hashPassword,
+  requireAdmin,
   requireAuth,
+  verifyPassword,
   verifyToken,
 };

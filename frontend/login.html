@@ -3,203 +3,201 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>EduTrack — School Management System</title>
+  <title>EduTrack - School Management System</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
-      --green:       #2d6a4f;
-      --green-dark:  #1b4332;
+      --green: #2d6a4f;
+      --green-dark: #1b4332;
       --green-light: #e8f5ee;
-      --green-mid:   #40916c;
-      --text:        #1a1a1a;
-      --muted:       #6b7280;
-      --border:      #e5e7eb;
-      --surface:     #ffffff;
-      --bg:          #f9fafb;
-      --danger:      #dc2626;
+      --green-mid: #40916c;
+      --text: #1a1a1a;
+      --muted: #6b7280;
+      --border: #e5e7eb;
+      --surface: #ffffff;
+      --bg: #f9fafb;
+      --danger: #dc2626;
     }
-    html { scroll-behavior: smooth; }
     body { font-family: 'Sora', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
-    .page { display: grid; grid-template-columns: 1fr 480px; min-height: 100vh; }
-    .hero { background: var(--green-dark); display: flex; flex-direction: column; justify-content: space-between; padding: 48px 56px; position: relative; overflow: hidden; }
-    .hero::before { content: ''; position: absolute; inset: 0; background-image: radial-gradient(circle at 20% 20%, rgba(64,145,108,0.3) 0%, transparent 50%), radial-gradient(circle at 80% 80%, rgba(45,106,79,0.4) 0%, transparent 50%); pointer-events: none; }
-    .hero-grid { position: absolute; inset: 0; background-image: linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px); background-size: 48px 48px; }
-    .hero-content { position: relative; z-index: 1; }
-    .brand { display: flex; align-items: center; gap: 14px; margin-bottom: 64px; }
-    .brand-icon { width: 48px; height: 48px; background: var(--green-mid); border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 24px; box-shadow: 0 4px 20px rgba(0,0,0,0.2); }
-    .brand-name { font-size: 22px; font-weight: 800; color: #fff; letter-spacing: -0.5px; }
-    .brand-sub { font-size: 12px; color: rgba(255,255,255,0.45); margin-top: 2px; font-weight: 400; }
-    .hero-tag { display: inline-flex; align-items: center; gap: 6px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.15); color: rgba(255,255,255,0.8); font-size: 12px; font-weight: 600; padding: 5px 12px; border-radius: 20px; margin-bottom: 20px; letter-spacing: 0.5px; text-transform: uppercase; }
-    .hero-title { font-size: clamp(32px, 3.5vw, 48px); font-weight: 800; color: #fff; line-height: 1.15; letter-spacing: -1.5px; margin-bottom: 20px; }
-    .hero-title span { color: #74c69d; }
-    .hero-desc { font-size: 15px; color: rgba(255,255,255,0.55); line-height: 1.7; max-width: 420px; margin-bottom: 48px; font-weight: 400; }
-    .features { display: flex; flex-direction: column; gap: 12px; }
-    .feature { display: flex; align-items: center; gap: 12px; color: rgba(255,255,255,0.75); font-size: 13.5px; font-weight: 500; }
-    .feature-dot { width: 28px; height: 28px; background: rgba(116,198,157,0.15); border: 1px solid rgba(116,198,157,0.3); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; }
-    .hero-footer { position: relative; z-index: 1; font-size: 12px; color: rgba(255,255,255,0.25); }
+    .page { display: grid; grid-template-columns: 1fr 460px; min-height: 100vh; }
+    .hero { background: var(--green-dark); color: #fff; padding: 48px 56px; display: flex; flex-direction: column; justify-content: space-between; }
+    .hero h1 { font-size: clamp(32px, 3.5vw, 48px); line-height: 1.12; letter-spacing: -1.4px; margin-bottom: 18px; }
+    .hero h1 span { color: #74c69d; }
+    .hero p { max-width: 420px; color: rgba(255,255,255,0.72); line-height: 1.7; }
+    .brand { display: flex; align-items: center; gap: 14px; margin-bottom: 56px; }
+    .brand-icon { width: 48px; height: 48px; border-radius: 14px; background: var(--green-mid); display: flex; align-items: center; justify-content: center; font-weight: 700; }
+    .brand-name { font-size: 22px; font-weight: 800; }
+    .brand-sub { font-size: 12px; color: rgba(255,255,255,0.55); }
+    .hero-list { display: grid; gap: 12px; margin-top: 32px; }
+    .hero-item { color: rgba(255,255,255,0.78); font-size: 14px; }
     .login-side { background: var(--surface); display: flex; align-items: center; justify-content: center; padding: 48px; border-left: 1px solid var(--border); }
     .login-box { width: 100%; max-width: 360px; }
-    .login-heading { font-size: 26px; font-weight: 800; letter-spacing: -0.8px; margin-bottom: 6px; }
-    .login-sub { font-size: 13.5px; color: var(--muted); margin-bottom: 36px; line-height: 1.5; }
+    .login-heading { font-size: 26px; font-weight: 800; margin-bottom: 6px; }
+    .login-sub { font-size: 13.5px; color: var(--muted); margin-bottom: 28px; line-height: 1.5; }
     .field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; }
-    .field label { font-size: 12px; font-weight: 700; color: var(--text); letter-spacing: 0.3px; }
-    .input-wrap { position: relative; }
-    .input-icon { position: absolute; left: 13px; top: 50%; transform: translateY(-50%); font-size: 15px; pointer-events: none; }
-    .field input { width: 100%; padding: 11px 14px 11px 40px; border: 1.5px solid var(--border); border-radius: 10px; font-family: 'Sora', sans-serif; font-size: 14px; color: var(--text); background: var(--bg); outline: none; transition: border-color 0.15s, background 0.15s; }
+    .field label { font-size: 12px; font-weight: 700; }
+    .field input { width: 100%; padding: 11px 14px; border: 1.5px solid var(--border); border-radius: 10px; font-family: 'Sora', sans-serif; font-size: 14px; background: var(--bg); outline: none; }
     .field input:focus { border-color: var(--green); background: #fff; box-shadow: 0 0 0 3px rgba(45,106,79,0.08); }
-    .field input::placeholder { color: #9ca3af; }
-    .toggle-pw { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; font-size: 16px; color: var(--muted); padding: 2px; line-height: 1; }
-    .login-btn { width: 100%; padding: 13px; background: var(--green); color: #fff; border: none; border-radius: 10px; font-family: 'Sora', sans-serif; font-size: 14px; font-weight: 700; cursor: pointer; margin-top: 8px; transition: all 0.15s; display: flex; align-items: center; justify-content: center; gap: 8px; letter-spacing: 0.2px; }
-    .login-btn:hover:not(:disabled) { background: var(--green-dark); transform: translateY(-1px); box-shadow: 0 6px 20px rgba(45,106,79,0.3); }
-    .login-btn:disabled { opacity: 0.65; cursor: not-allowed; transform: none; }
-    .error-box { display: none; align-items: center; gap: 8px; background: #fef2f2; border: 1px solid #fecaca; color: var(--danger); padding: 10px 14px; border-radius: 9px; font-size: 13px; font-weight: 500; margin-top: 14px; }
+    .password-row { position: relative; }
+    .toggle-pw { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); border: none; background: none; color: var(--muted); cursor: pointer; }
+    .login-btn { width: 100%; padding: 13px; background: var(--green); color: #fff; border: none; border-radius: 10px; font-family: 'Sora', sans-serif; font-size: 14px; font-weight: 700; cursor: pointer; margin-top: 8px; display: flex; align-items: center; justify-content: center; gap: 8px; }
+    .login-btn:disabled { opacity: 0.7; cursor: not-allowed; }
+    .error-box { display: none; align-items: center; gap: 8px; background: #fef2f2; border: 1px solid #fecaca; color: var(--danger); padding: 10px 14px; border-radius: 9px; font-size: 13px; margin-top: 14px; }
     .error-box.show { display: flex; }
-    .divider { display: flex; align-items: center; gap: 12px; margin: 24px 0; color: var(--muted); font-size: 12px; }
-    .divider::before, .divider::after { content: ''; flex: 1; height: 1px; background: var(--border); }
-    .hint-box { background: var(--green-light); border: 1px solid #b7e4c7; border-radius: 10px; padding: 14px 16px; font-size: 12.5px; color: var(--green); line-height: 1.6; }
-    .hint-box strong { font-weight: 700; }
-    .hint-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 6px; }
-    .hint-row span { font-family: 'JetBrains Mono', monospace; background: rgba(45,106,79,0.12); padding: 3px 8px; border-radius: 5px; font-size: 12px; }
-    .login-footer { margin-top: 32px; font-size: 12px; color: var(--muted); text-align: center; line-height: 1.6; }
-    .spinner { width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.35); border-top-color: #fff; border-radius: 50%; animation: spin 0.7s linear infinite; flex-shrink: 0; }
+    .hint-box { background: var(--green-light); border: 1px solid #b7e4c7; border-radius: 10px; padding: 14px 16px; font-size: 12.5px; color: var(--green); line-height: 1.6; margin-top: 24px; }
+    .hint-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 8px; }
+    .hint-row span:last-child { font-family: 'JetBrains Mono', monospace; background: rgba(45,106,79,0.12); padding: 3px 8px; border-radius: 5px; }
+    .login-footer { margin-top: 28px; font-size: 12px; color: var(--muted); text-align: center; line-height: 1.6; }
+    .spinner { width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.35); border-top-color: #fff; border-radius: 50%; animation: spin 0.7s linear infinite; }
     @keyframes spin { to { transform: rotate(360deg); } }
     @media (max-width: 900px) {
       .page { grid-template-columns: 1fr; }
-      .hero { padding: 36px 28px 40px; min-height: auto; }
-      .brand { margin-bottom: 36px; }
-      .hero-title { font-size: 30px; }
-      .features { display: none; }
+      .hero { padding: 36px 28px 40px; }
       .login-side { padding: 36px 24px; border-left: none; border-top: 1px solid var(--border); }
     }
   </style>
 </head>
 <body>
-<div class="page">
-
-  <!-- LEFT HERO -->
-  <section class="hero">
-    <div class="hero-grid"></div>
-    <div class="hero-content">
-      <div class="brand">
-        <div class="brand-icon">🎓</div>
-        <div>
-          <div class="brand-name">EduTrack</div>
-          <div class="brand-sub">School Management System</div>
+  <div class="page">
+    <section class="hero">
+      <div>
+        <div class="brand">
+          <div class="brand-icon">ST</div>
+          <div>
+            <div class="brand-name">EduTrack</div>
+            <div class="brand-sub">School Management System</div>
+          </div>
+        </div>
+        <h1>Manage your school <span>smarter</span> and faster.</h1>
+        <p>A simple admin portal for students, users, and access control backed by a database table.</p>
+        <div class="hero-list">
+          <div class="hero-item">Students are stored in PostgreSQL.</div>
+          <div class="hero-item">Users are stored in a users table.</div>
+          <div class="hero-item">Passwords are hashed before storage.</div>
         </div>
       </div>
-      <div class="hero-tag">✦ Admin Portal</div>
-      <h1 class="hero-title">Manage your<br />school <span>smarter</span><br />and faster.</h1>
-      <p class="hero-desc">A complete student management platform — track enrollments, grades, marks, and more — all in one clean dashboard.</p>
-      <div class="features">
-        <div class="feature"><div class="feature-dot">👥</div> Student profiles with full details</div>
-        <div class="feature"><div class="feature-dot">📝</div> Subject-wise marks and grade tracking</div>
-        <div class="feature"><div class="feature-dot">📊</div> Grade-wise stats and analytics</div>
-        <div class="feature"><div class="feature-dot">🔒</div> Secure admin-only access</div>
-      </div>
-    </div>
-    <div class="hero-footer">© 2025 EduTrack &bull; Built for schools</div>
-  </section>
+      <div class="brand-sub">EduTrack secure login</div>
+    </section>
 
-  <!-- RIGHT LOGIN -->
-  <section class="login-side">
-    <div class="login-box">
-      <h2 class="login-heading">Welcome back</h2>
-      <p class="login-sub">Sign in with your admin credentials to access the dashboard.</p>
+    <section class="login-side">
+      <div class="login-box">
+        <h2 class="login-heading">Welcome back</h2>
+        <p class="login-sub">Sign in with a username from the users table to access the dashboard.</p>
 
-      <div class="field">
-        <label>Username</label>
-        <div class="input-wrap">
-          <span class="input-icon">👤</span>
+        <div class="field">
+          <label>Username</label>
           <input type="text" id="login_username" placeholder="Enter your username" autocomplete="username" />
         </div>
-      </div>
 
-      <div class="field">
-        <label>Password</label>
-        <div class="input-wrap">
-          <span class="input-icon">🔑</span>
-          <input type="password" id="login_password" placeholder="Enter your password" autocomplete="current-password" />
-          <button class="toggle-pw" id="togglePw" title="Show/hide password">👁️</button>
+        <div class="field">
+          <label>Password</label>
+          <div class="password-row">
+            <input type="password" id="login_password" placeholder="Enter your password" autocomplete="current-password" />
+            <button class="toggle-pw" id="togglePw" type="button">Show</button>
+          </div>
+        </div>
+
+        <button class="login-btn" id="loginBtn">Sign In to Dashboard</button>
+
+        <div class="error-box" id="errorBox">
+          <span>!</span>
+          <span id="errorMsg">Invalid credentials</span>
+        </div>
+
+        <div class="hint-box">
+          <strong>Admin seed user</strong>
+          <div class="hint-row"><span>Username</span><span id="seedUsername">admin</span></div>
+          <div id="seedNote" style="margin-top:8px;font-size:11.5px;opacity:0.8">The initial admin comes from your environment variables and is stored in the users table on startup.</div>
+        </div>
+
+        <div class="login-footer">
+          EduTrack v1.0<br />
+          Database-backed login with hashed passwords
         </div>
       </div>
+    </section>
+  </div>
 
-      <button class="login-btn" id="loginBtn">Sign In to Dashboard</button>
-
-      <div class="error-box" id="errorBox">
-        <span>⚠️</span>
-        <span id="errorMsg">Invalid credentials</span>
-      </div>
-
-      <div class="divider">default credentials</div>
-
-      <div class="hint-box">
-        <strong>🔐 Admin Login</strong>
-        <div class="hint-row"><span>Username</span><span>admin</span></div>
-        <div class="hint-row"><span>Password</span><span>admin123</span></div>
-        <div style="margin-top:8px;font-size:11.5px;opacity:0.8">Change these in your <code>.env</code> / Vercel environment variables.</div>
-      </div>
-
-      <div class="login-footer">
-        EduTrack v1.0 &bull; School Admin Portal<br />
-        Secured admin access
-      </div>
-    </div>
-  </section>
-
-</div>
-<script>
-  if (localStorage.getItem('edu_token')) { window.location.href = '/'; }
-
-  const pwInput   = document.getElementById('login_password');
-  const toggleBtn = document.getElementById('togglePw');
-  let pwVisible   = false;
-  toggleBtn.addEventListener('click', () => {
-    pwVisible         = !pwVisible;
-    pwInput.type      = pwVisible ? 'text' : 'password';
-    toggleBtn.textContent = pwVisible ? '🙈' : '👁️';
-  });
-
-  async function doLogin() {
-    const username = document.getElementById('login_username').value.trim();
-    const password = document.getElementById('login_password').value;
-    const btn      = document.getElementById('loginBtn');
-    const errorBox = document.getElementById('errorBox');
-    const errorMsg = document.getElementById('errorMsg');
-
-    errorBox.classList.remove('show');
-
-    if (!username || !password) {
-      errorMsg.textContent = 'Please enter both username and password.';
-      errorBox.classList.add('show');
-      return;
-    }
-
-    btn.disabled  = true;
-    btn.innerHTML = '<div class="spinner"></div> Signing in…';
-
-    try {
-      const res  = await fetch('/api/login', {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ username, password }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Login failed');
-      localStorage.setItem('edu_token', data.token);
-      localStorage.setItem('edu_username', data.username);
+  <script>
+    if (localStorage.getItem('edu_token')) {
       window.location.href = '/';
-    } catch (err) {
-      errorMsg.textContent = err.message;
-      errorBox.classList.add('show');
-      btn.disabled  = false;
-      btn.innerHTML = 'Sign In to Dashboard';
     }
-  }
 
-  document.getElementById('loginBtn').addEventListener('click', doLogin);
-  document.addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
-</script>
+    const pwInput = document.getElementById('login_password');
+    const toggleBtn = document.getElementById('togglePw');
+    let pwVisible = false;
+
+    toggleBtn.addEventListener('click', () => {
+      pwVisible = !pwVisible;
+      pwInput.type = pwVisible ? 'text' : 'password';
+      toggleBtn.textContent = pwVisible ? 'Hide' : 'Show';
+    });
+
+    async function loadConfig() {
+      try {
+        const res = await fetch('/api/config');
+        const data = await res.json();
+        if (data.defaultAdminUsername) {
+          document.getElementById('seedUsername').textContent = data.defaultAdminUsername;
+        }
+        if (!data.adminPrivilegeChangesEnabled) {
+          document.getElementById('seedNote').textContent = 'Admin access changes are disabled unless ALLOW_ADMIN_PRIVILEGE_CHANGES=true.';
+        }
+      } catch (_error) {
+        return;
+      }
+    }
+
+    async function doLogin() {
+      const username = document.getElementById('login_username').value.trim();
+      const password = document.getElementById('login_password').value;
+      const btn = document.getElementById('loginBtn');
+      const errorBox = document.getElementById('errorBox');
+      const errorMsg = document.getElementById('errorMsg');
+
+      errorBox.classList.remove('show');
+
+      if (!username || !password) {
+        errorMsg.textContent = 'Please enter both username and password.';
+        errorBox.classList.add('show');
+        return;
+      }
+
+      btn.disabled = true;
+      btn.innerHTML = '<div class="spinner"></div> Signing in...';
+
+      try {
+        const res = await fetch('/api/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, password }),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data.error || 'Login failed');
+        }
+
+        localStorage.setItem('edu_token', data.token);
+        localStorage.setItem('edu_username', data.username);
+        window.location.href = '/';
+      } catch (error) {
+        errorMsg.textContent = error.message;
+        errorBox.classList.add('show');
+        btn.disabled = false;
+        btn.textContent = 'Sign In to Dashboard';
+      }
+    }
+
+    document.getElementById('loginBtn').addEventListener('click', doLogin);
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') {
+        doLogin();
+      }
+    });
+
+    loadConfig();
+  </script>
 </body>
 </html>
