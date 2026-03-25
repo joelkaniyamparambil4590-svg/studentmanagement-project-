@@ -367,7 +367,7 @@ app.get('/api/students/:id', async (req, res) => {
   }
 });
 
-app.post('/api/students', async (req, res) => {
+app.post('/api/students', requireAdminUser, async (req, res) => {
   const { name, email, phone, grade, section, age, gender, address, joined_on } = req.body;
 
   if (!name || !email || !grade) {
@@ -392,7 +392,7 @@ app.post('/api/students', async (req, res) => {
   }
 });
 
-app.put('/api/students/:id', async (req, res) => {
+app.put('/api/students/:id', requireAdminUser, async (req, res) => {
   const { name, email, phone, grade, section, age, gender, address, joined_on } = req.body;
 
   if (!name || !email || !grade) {
@@ -424,7 +424,7 @@ app.put('/api/students/:id', async (req, res) => {
   }
 });
 
-app.delete('/api/students/:id', async (req, res) => {
+app.delete('/api/students/:id', requireAdminUser, async (req, res) => {
   try {
     const { rowCount } = await pool.query('DELETE FROM public.students WHERE id = $1', [req.params.id]);
     if (!rowCount) {

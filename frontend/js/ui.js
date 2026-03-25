@@ -34,7 +34,7 @@ function renderStats(data) {
   `;
 }
 
-function renderTable(students, currentPage, onEdit, onDelete) {
+function renderTable(students, currentPage, onEdit, onDelete, canManageStudents = false) {
   const wrap = document.getElementById('tableWrap');
   const total = students.length;
   const pages = Math.ceil(total / PAGE_SIZE);
@@ -81,10 +81,12 @@ function renderTable(students, currentPage, onEdit, onDelete) {
         <td>${student.phone || '-'}</td>
         <td>${joined}</td>
         <td>
-          <div class="actions">
-            <button class="action-btn" data-edit="${student.id}" title="Edit">Edit</button>
-            <button class="action-btn del" data-del="${student.id}" data-name="${student.name.replace(/"/g, '&quot;')}" title="Delete">Del</button>
-          </div>
+          ${canManageStudents ? `
+            <div class="actions">
+              <button class="action-btn" data-edit="${student.id}" title="Edit">Edit</button>
+              <button class="action-btn del" data-del="${student.id}" data-name="${student.name.replace(/"/g, '&quot;')}" title="Delete">Del</button>
+            </div>
+          ` : '<span class="muted-note">Read only</span>'}
         </td>
       </tr>
     `;
@@ -108,13 +110,15 @@ function renderTable(students, currentPage, onEdit, onDelete) {
     ${pages > 1 ? renderPagination(currentPage, pages, total, start) : ''}
   `;
 
-  wrap.querySelectorAll('[data-edit]').forEach((button) => {
-    button.addEventListener('click', () => onEdit(Number(button.dataset.edit)));
-  });
+  if (canManageStudents) {
+    wrap.querySelectorAll('[data-edit]').forEach((button) => {
+      button.addEventListener('click', () => onEdit(Number(button.dataset.edit)));
+    });
 
-  wrap.querySelectorAll('[data-del]').forEach((button) => {
-    button.addEventListener('click', () => onDelete(Number(button.dataset.del), button.dataset.name));
-  });
+    wrap.querySelectorAll('[data-del]').forEach((button) => {
+      button.addEventListener('click', () => onDelete(Number(button.dataset.del), button.dataset.name));
+    });
+  }
 }
 
 function renderPagination(current, total, count, start) {

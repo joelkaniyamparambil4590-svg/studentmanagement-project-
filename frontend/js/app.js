@@ -42,6 +42,15 @@ function updateSessionUI(session) {
       ? `${session.username} (admin)`
       : session.username;
   }
+
+  const navAdd = document.getElementById('navAdd');
+  const addTop = document.getElementById('btnAddTop');
+  if (navAdd) {
+    navAdd.classList.toggle('hidden', !session.isAdmin);
+  }
+  if (addTop) {
+    addTop.classList.toggle('hidden', !session.isAdmin);
+  }
 }
 
 function bindEvents() {
@@ -93,7 +102,7 @@ function bindEvents() {
     const maxPage = Math.ceil(allStudents.length / PAGE_SIZE);
     if (page >= 1 && page <= maxPage) {
       currentPage = page;
-      renderTable(allStudents, currentPage, handleEdit, handleAskDelete);
+      renderTable(allStudents, currentPage, handleEdit, handleAskDelete, currentSession?.isAdmin);
     }
   });
 
@@ -128,7 +137,7 @@ async function loadStudents() {
   try {
     allStudents = await fetchStudents(search, grade);
     currentPage = 1;
-    renderTable(allStudents, currentPage, handleEdit, handleAskDelete);
+    renderTable(allStudents, currentPage, handleEdit, handleAskDelete, currentSession?.isAdmin);
   } catch (error) {
     showTableError(error.message || 'Failed to load students. Check your connection.');
   }
@@ -164,6 +173,11 @@ function debounceSearch() {
 }
 
 function handleOpenModal(student = null) {
+  if (!currentSession?.isAdmin) {
+    showToast('Only admins can add or edit student data', 'error');
+    return;
+  }
+
   editingId = student ? student.id : null;
   openModal(student);
 }
@@ -179,6 +193,11 @@ async function handleEdit(id) {
 }
 
 async function handleSave() {
+  if (!currentSession?.isAdmin) {
+    showToast('Only admins can change student data', 'error');
+    return;
+  }
+
   const payload = getFormData();
 
   if (!payload.name || !payload.email || !payload.grade) {
@@ -249,6 +268,11 @@ function handleAskDelete(id, name) {
 }
 
 async function handleDelete() {
+  if (!currentSession?.isAdmin) {
+    showToast('Only admins can delete student data', 'error');
+    return;
+  }
+
   if (!deleteId) {
     return;
   }
