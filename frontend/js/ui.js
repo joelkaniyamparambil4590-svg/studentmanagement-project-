@@ -214,10 +214,10 @@ function showTableLoading() {
     '<div class="loading"><div class="spinner"></div> Loading students…</div>';
 }
 
-function showTableError() {
+function showTableError(message = 'Failed to load students. Check your connection.') {
   document.getElementById('tableWrap').innerHTML = `
     <div class="empty-state">
       <div class="empty-icon">⚠️</div>
-      <p>Failed to load students. Check your connection.</p>
+      <p>${message}</p>
     </div>`;
 }

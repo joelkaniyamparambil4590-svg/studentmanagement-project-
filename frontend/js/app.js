@@ -89,8 +89,8 @@ async function loadStats() {
   try {
     const data = await fetchStats();
     renderStats(data);
-  } catch (_error) {
-    showToast('Failed to load stats', 'error');
+  } catch (error) {
+    showToast(error.message || 'Failed to load stats', 'error');
   }
 }
 
@@ -104,8 +104,8 @@ async function loadStudents() {
     allStudents = await fetchStudents(search, grade);
     currentPage = 1;
     renderTable(allStudents, currentPage, handleEdit, handleAskDelete);
-  } catch (_error) {
-    showTableError();
+  } catch (error) {
+    showTableError(error.message || 'Failed to load students. Check your connection.');
   }
 }
 

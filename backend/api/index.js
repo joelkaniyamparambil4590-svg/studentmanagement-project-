@@ -3,7 +3,7 @@ const cors = require('cors');
 const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '../.env') });
 
-const pool = require('./db');
+const { pool, getDatabaseConfigError } = require('./db');
 const {
   authenticateCredentials,
   createToken,
@@ -19,6 +19,10 @@ app.use(cors());
 app.use(express.json());
 
 async function initDB() {
+  if (!pool) {
+    throw getDatabaseConfigError();
+  }
+
   await pool.query(`
     CREATE TABLE IF NOT EXISTS students (
       id         SERIAL PRIMARY KEY,
@@ -47,7 +51,9 @@ async function ensureDatabaseReady(_req, res, next) {
   await dbReady;
 
   if (dbInitError) {
-    return res.status(500).json({ error: 'Database is not ready' });
+    return res.status(503).json({
+      error: dbInitError.message || 'Database is not ready',
+    });
   }
 
   return next();
@@ -60,26 +66,22 @@ function getTokenFromRequest(req) {
     : null;
 }
 
-function isAuthenticatedRequest(req) {
-  return Boolean(verifyToken(getTokenFromRequest(req)));
-}
+app.get('/api/health', async (_req, res) => {
+  await dbReady;
 
-function serveProtectedPage(fileName) {
-  return (req, res) => {
-    if (!isAuthenticatedRequest(req)) {
-      return res.redirect('/login');
-    }
+  if (dbInitError) {
+    return res.status(503).json({
+      status: 'error',
+      db: 'unavailable',
+      message: dbInitError.message,
+    });
+  }
 
-    return res.sendFile(path.join(frontendDir, fileName));
-  };
-}
-
-app.get('/api/health', ensureDatabaseReady, async (_req, res) => {
   try {
     const result = await pool.query('SELECT NOW() AS time');
-    res.json({ status: 'ok', db: 'connected', time: result.rows[0].time });
+    return res.json({ status: 'ok', db: 'connected', time: result.rows[0].time });
   } catch (error) {
-    res.status(500).json({ status: 'error', message: error.message });
+    return res.status(500).json({ status: 'error', db: 'unavailable', message: error.message });
   }
 });
 
@@ -257,8 +259,13 @@ app.get('/login', (_req, res) => {
   res.sendFile(path.join(frontendDir, 'login.html'));
 });
 
-app.get('/', serveProtectedPage('index.html'));
-app.get('/index.html', serveProtectedPage('index.html'));
+app.get('/', (_req, res) => {
+  res.sendFile(path.join(frontendDir, 'index.html'));
+});
+
+app.get('/index.html', (_req, res) => {
+  res.sendFile(path.join(frontendDir, 'index.html'));
+});
 
 app.use('/css', express.static(path.join(frontendDir, 'css')));
 app.use('/js', express.static(path.join(frontendDir, 'js')));
@@ -267,10 +274,6 @@ app.use('/images', express.static(path.join(frontendDir, 'images')));
 app.get('*', (req, res) => {
   if (req.path.startsWith('/api/')) {
     return res.status(404).json({ error: 'Not found' });
-  }
-
-  if (!isAuthenticatedRequest(req)) {
-    return res.redirect('/login');
   }
 
   return res.sendFile(path.join(frontendDir, 'index.html'));
