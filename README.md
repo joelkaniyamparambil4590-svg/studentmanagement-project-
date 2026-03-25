@@ -1,93 +1,88 @@
-# EduTrack — Student Management System
+# EduTrack - Student Management System
 
-Full-stack student management system with a clean frontend/backend separation.
+Student management app with:
 
----
+- `backend/` for the Express + PostgreSQL API
+- `frontend/` for the static HTML/CSS/JS dashboard and login page
+- `vercel.json` for Vercel routing between static assets and the API
 
-## 📁 Project Structure
+## Project Structure
 
-```
-student-mgmt/
-│
-├── backend/                   ← Node.js + Express API
-│   ├── api/
-│   │   ├── index.js           ← Express server & all REST routes
-│   │   └── db.js              ← PostgreSQL pool (Neon-compatible)
-│   ├── .env.example
-│   └── package.json
-│
-├── frontend/                  ← Static HTML/CSS/JS
-│   ├── index.html             ← Single-page markup (no inline JS/CSS)
-│   ├── css/
-│   │   └── style.css          ← All styles
-│   └── js/
-│       ├── api.js             ← Fetch wrappers for the backend API
-│       ├── ui.js              ← DOM rendering helpers (table, modal, toast…)
-│       └── app.js             ← Main controller (events, orchestration)
-│
-├── vercel.json                ← Vercel deployment config
-├── .gitignore
-└── README.md
-```
-
----
-
-## 🚀 Local Setup
-
-### 1. Install dependencies
-```bash
-cd backend
-npm install
+```text
+student-mgmt-v2/
+|-- backend/
+|   |-- api/
+|   |   |-- auth.js
+|   |   |-- db.js
+|   |   `-- index.js
+|   |-- .env.example
+|   `-- package.json
+|-- frontend/
+|   |-- css/
+|   |   `-- style.css
+|   |-- js/
+|   |   |-- api.js
+|   |   |-- app.js
+|   |   `-- ui.js
+|   |-- index.html
+|   `-- login.html
+|-- .gitignore
+|-- README.md
+`-- vercel.json
 ```
 
-### 2. Configure environment
-```bash
-cp .env.example .env
-# Paste your Neon.tech DATABASE_URL inside .env
-```
+## Local Setup
 
-### 3. Run
-```bash
-npm run dev    # nodemon — auto-restarts on changes
-# OR
-npm start      # plain node
-```
+1. Install backend dependencies:
 
-Open → [http://localhost:3000](http://localhost:3000)
+   ```bash
+   cd backend
+   npm install
+   ```
 
-> The backend serves the `frontend/` folder as static files automatically.
+2. Create `backend/.env` from `backend/.env.example`.
 
----
+3. Add your Neon connection string and admin auth values:
 
-## ☁️ Deploy to Vercel
+   ```env
+   DATABASE_URL=postgresql://...
+   ADMIN_USERNAME=admin
+   ADMIN_PASSWORD=your-password
+   AUTH_SECRET=your-long-random-secret
+   PORT=3000
+   ```
 
-1. Push the whole project to GitHub
-2. Import at [vercel.com](https://vercel.com)
-3. Add Environment Variable:
-   - **Key**: `DATABASE_URL`
-   - **Value**: your Neon connection string
-4. Deploy — the `students` table is created automatically on first request
+4. Start the app:
 
----
+   ```bash
+   npm run dev
+   ```
 
-## 🔌 API Reference
+5. Open `http://localhost:3000/login`.
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/students` | List all (`?search=` / `?grade=`) |
-| GET | `/api/students/:id` | Single student |
-| POST | `/api/students` | Create student |
-| PUT | `/api/students/:id` | Update student |
-| DELETE | `/api/students/:id` | Delete student |
-| GET | `/api/stats` | Total + per-grade counts |
+## Vercel + Neon
 
----
+Add these environment variables in Vercel:
 
-## 🛠 Tech Stack
+- `DATABASE_URL`
+- `ADMIN_USERNAME`
+- `ADMIN_PASSWORD`
+- `AUTH_SECRET`
 
-| Layer | Tech |
-|-------|------|
-| Frontend | HTML5 · CSS3 · Vanilla JS (3 files) |
-| Backend | Node.js · Express.js |
-| Database | PostgreSQL via [Neon.tech](https://neon.tech) |
-| Hosting | [Vercel](https://vercel.com) |
+Routing behavior:
+
+- `/api/*` -> Express API in `backend/api/index.js`
+- `/login` -> `frontend/login.html`
+- `/` -> protected dashboard served by the backend
+
+## API Endpoints
+
+- `POST /api/login`
+- `GET /api/session`
+- `GET /api/health`
+- `GET /api/students`
+- `GET /api/students/:id`
+- `POST /api/students`
+- `PUT /api/students/:id`
+- `DELETE /api/students/:id`
+- `GET /api/stats`

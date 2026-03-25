@@ -1,88 +1,110 @@
 /**
  * app.js
  * Main application controller.
- * Wires together api.js and ui.js — no direct DOM rendering here.
+ * Wires together api.js and ui.js with auth/session handling.
  */
 
-let allStudents  = [];
-let editingId    = null;
-let deleteId     = null;
-let currentPage  = 1;
-let searchTimer  = null;
-
-// ── Init ─────────────────────────────────────────────────────────────────────
+let allStudents = [];
+let editingId = null;
+let deleteId = null;
+let currentPage = 1;
+let searchTimer = null;
 
 async function init() {
+  if (!localStorage.getItem('edu_token')) {
+    window.location.href = '/login';
+    return;
+  }
+
+  try {
+    const session = await fetchSession();
+    updateSessionUI(session.username);
+  } catch (_error) {
+    return;
+  }
+
   bindEvents();
   await Promise.all([loadStats(), loadStudents()]);
 }
 
-// ── Events ────────────────────────────────────────────────────────────────────
+function updateSessionUI(username) {
+  const userChip = document.getElementById('userChip');
+  if (userChip) {
+    userChip.textContent = username || localStorage.getItem('edu_username') || 'Admin';
+  }
+}
 
 function bindEvents() {
-  // Sidebar / topbar
   document.getElementById('navStudents').addEventListener('click', () => {
     document.getElementById('tableWrap').scrollIntoView({ behavior: 'smooth' });
   });
+
   document.getElementById('navAdd').addEventListener('click', () => handleOpenModal());
   document.getElementById('btnAddTop').addEventListener('click', () => handleOpenModal());
+  document.getElementById('btnLogout').addEventListener('click', handleLogout);
 
-  // Search & filter
   document.getElementById('searchInput').addEventListener('input', debounceSearch);
   document.getElementById('gradeFilter').addEventListener('change', debounceSearch);
 
-  // Modal
-  document.getElementById('modalClose').addEventListener('click',  closeModal);
+  document.getElementById('modalClose').addEventListener('click', closeModal);
   document.getElementById('modalCancel').addEventListener('click', closeModal);
-  document.getElementById('modalSave').addEventListener('click',   handleSave);
-  document.getElementById('studentModal').addEventListener('click', e => {
-    if (e.target === document.getElementById('studentModal')) closeModal();
+  document.getElementById('modalSave').addEventListener('click', handleSave);
+  document.getElementById('studentModal').addEventListener('click', (event) => {
+    if (event.target === document.getElementById('studentModal')) {
+      closeModal();
+    }
   });
 
-  // Confirm dialog
   document.getElementById('confirmCancel').addEventListener('click', closeConfirm);
-  document.getElementById('confirmOk').addEventListener('click',     handleDelete);
-  document.getElementById('confirmOverlay').addEventListener('click', e => {
-    if (e.target === document.getElementById('confirmOverlay')) closeConfirm();
+  document.getElementById('confirmOk').addEventListener('click', handleDelete);
+  document.getElementById('confirmOverlay').addEventListener('click', (event) => {
+    if (event.target === document.getElementById('confirmOverlay')) {
+      closeConfirm();
+    }
   });
 
-  // Pagination (delegated)
-  document.getElementById('tableWrap').addEventListener('click', e => {
-    const btn = e.target.closest('[data-page]');
-    if (!btn || btn.disabled) return;
-    const page = Number(btn.dataset.page);
-    const max  = Math.ceil(allStudents.length / PAGE_SIZE);
-    if (page >= 1 && page <= max) {
+  document.getElementById('tableWrap').addEventListener('click', (event) => {
+    const button = event.target.closest('[data-page]');
+    if (!button || button.disabled) {
+      return;
+    }
+
+    const page = Number(button.dataset.page);
+    const maxPage = Math.ceil(allStudents.length / PAGE_SIZE);
+    if (page >= 1 && page <= maxPage) {
       currentPage = page;
       renderTable(allStudents, currentPage, handleEdit, handleAskDelete);
     }
   });
 
-  // Keyboard
-  document.addEventListener('keydown', e => {
-    if (e.key === 'Escape') { closeModal(); closeConfirm(); }
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') {
+      closeModal();
+      closeConfirm();
+    }
   });
 }
-
-// ── Data Loaders ──────────────────────────────────────────────────────────────
 
 async function loadStats() {
   try {
     const data = await fetchStats();
     renderStats(data);
-  } catch (_) { /* silent */ }
+  } catch (_error) {
+    showToast('Failed to load stats', 'error');
+  }
 }
 
 async function loadStudents() {
   const search = document.getElementById('searchInput').value;
-  const grade  = document.getElementById('gradeFilter').value;
+  const grade = document.getElementById('gradeFilter').value;
 
   showTableLoading();
+
   try {
     allStudents = await fetchStudents(search, grade);
     currentPage = 1;
     renderTable(allStudents, currentPage, handleEdit, handleAskDelete);
-  } catch (_) {
+  } catch (_error) {
     showTableError();
   }
 }
@@ -95,19 +117,17 @@ function debounceSearch() {
   }, 350);
 }
 
-// ── Student Handlers ──────────────────────────────────────────────────────────
-
 function handleOpenModal(student = null) {
   editingId = student ? student.id : null;
-  openModal(student); // openModal is defined in ui.js
+  openModal(student);
 }
 
 async function handleEdit(id) {
   try {
     const student = await fetchStudent(id);
     editingId = id;
-    openModal(student); // openModal is defined in ui.js
-  } catch (_) {
+    openModal(student);
+  } catch (_error) {
     showToast('Failed to load student', 'error');
   }
 }
@@ -123,16 +143,17 @@ async function handleSave() {
   try {
     if (editingId) {
       await updateStudent(editingId, payload);
-      showToast('Student updated ✓', 'success');
+      showToast('Student updated successfully', 'success');
     } else {
       await createStudent(payload);
-      showToast('Student added ✓', 'success');
+      showToast('Student added successfully', 'success');
     }
+
     closeModal();
     editingId = null;
     await Promise.all([loadStudents(), loadStats()]);
-  } catch (err) {
-    showToast(err.message, 'error');
+  } catch (error) {
+    showToast(error.message, 'error');
   }
 }
 
@@ -142,17 +163,25 @@ function handleAskDelete(id, name) {
 }
 
 async function handleDelete() {
-  if (!deleteId) return;
+  if (!deleteId) {
+    return;
+  }
+
   try {
     await deleteStudent(deleteId);
     showToast('Student deleted', 'success');
     closeConfirm();
     deleteId = null;
     await Promise.all([loadStudents(), loadStats()]);
-  } catch (err) {
-    showToast(err.message, 'error');
+  } catch (error) {
+    showToast(error.message, 'error');
   }
 }
 
-// ── Start ─────────────────────────────────────────────────────────────────────
+function handleLogout() {
+  localStorage.removeItem('edu_token');
+  localStorage.removeItem('edu_username');
+  window.location.href = '/login';
+}
+
 init();

@@ -1,17 +1,23 @@
 const express = require('express');
-const cors    = require('cors');
-const path    = require('path');
-require('dotenv').config();
+const cors = require('cors');
+const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '../.env') });
 
 const pool = require('./db');
-const app  = express();
+const {
+  authenticateCredentials,
+  createToken,
+  getAuthConfig,
+  requireAuth,
+  verifyToken,
+} = require('./auth');
+
+const app = express();
+const frontendDir = path.join(__dirname, '../../frontend');
 
 app.use(cors());
 app.use(express.json());
 
-// Serve the frontend folder
-app.use(express.static(path.join(__dirname, '../../frontend')));
-// ── Init DB ──────────────────────────────────────────────────────────────────
 async function initDB() {
   await pool.query(`
     CREATE TABLE IF NOT EXISTS students (
@@ -29,9 +35,92 @@ async function initDB() {
     );
   `);
 }
-initDB().catch(console.error);
 
-// ── GET all students ─────────────────────────────────────────────────────────
+let dbInitError = null;
+
+const dbReady = initDB().catch((error) => {
+  dbInitError = error;
+  console.error('Database initialization failed:', error);
+});
+
+async function ensureDatabaseReady(_req, res, next) {
+  await dbReady;
+
+  if (dbInitError) {
+    return res.status(500).json({ error: 'Database is not ready' });
+  }
+
+  return next();
+}
+
+function getTokenFromRequest(req) {
+  const authHeader = req.headers.authorization;
+  return authHeader && authHeader.startsWith('Bearer ')
+    ? authHeader.slice('Bearer '.length).trim()
+    : null;
+}
+
+function isAuthenticatedRequest(req) {
+  return Boolean(verifyToken(getTokenFromRequest(req)));
+}
+
+function serveProtectedPage(fileName) {
+  return (req, res) => {
+    if (!isAuthenticatedRequest(req)) {
+      return res.redirect('/login');
+    }
+
+    return res.sendFile(path.join(frontendDir, fileName));
+  };
+}
+
+app.get('/api/health', ensureDatabaseReady, async (_req, res) => {
+  try {
+    const result = await pool.query('SELECT NOW() AS time');
+    res.json({ status: 'ok', db: 'connected', time: result.rows[0].time });
+  } catch (error) {
+    res.status(500).json({ status: 'error', message: error.message });
+  }
+});
+
+app.post('/api/login', async (req, res) => {
+  const { username = '', password = '' } = req.body || {};
+
+  if (!authenticateCredentials(username, password)) {
+    return res.status(401).json({ error: 'Invalid username or password' });
+  }
+
+  const token = createToken(username);
+  return res.json({ token, username });
+});
+
+app.get('/api/session', (req, res) => {
+  const payload = verifyToken(getTokenFromRequest(req));
+
+  if (!payload) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+
+  return res.json({ username: payload.username });
+});
+
+app.get('/api/config', (_req, res) => {
+  const authConfig = getAuthConfig();
+  res.json({
+    authConfigured: Boolean(
+      process.env.ADMIN_USERNAME &&
+      process.env.ADMIN_PASSWORD &&
+      (process.env.AUTH_SECRET || process.env.JWT_SECRET)
+    ),
+    defaultAdminUsername: authConfig.username,
+  });
+});
+
+app.use('/api/students', requireAuth);
+app.use('/api/stats', requireAuth);
+app.use('/api/students', ensureDatabaseReady);
+app.use('/api/stats', ensureDatabaseReady);
+
 app.get('/api/students', async (req, res) => {
   try {
     const { search, grade } = req.query;
@@ -43,109 +132,155 @@ app.get('/api/students', async (req, res) => {
       params.push(`%${search}%`);
       conditions.push(`(name ILIKE $${params.length} OR email ILIKE $${params.length})`);
     }
+
     if (grade) {
       params.push(grade);
       conditions.push(`grade = $${params.length}`);
     }
-    if (conditions.length) query += ' WHERE ' + conditions.join(' AND ');
+
+    if (conditions.length) {
+      query += ` WHERE ${conditions.join(' AND ')}`;
+    }
+
     query += ' ORDER BY created_at DESC';
 
     const { rows } = await pool.query(query, params);
-    res.json(rows);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to fetch students' });
+    return res.json(rows);
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ error: 'Failed to fetch students' });
   }
 });
-app.get('/api/health', async (req, res) => {
-  try {
-    const result = await pool.query('SELECT NOW() as time');
-    res.json({ status: 'ok', db: 'connected', time: result.rows[0].time });
-  } catch (err) {
-    res.status(500).json({ status: 'error', message: err.message });
-  }
-});
-// ── GET single student ───────────────────────────────────────────────────────
+
 app.get('/api/students/:id', async (req, res) => {
   try {
     const { rows } = await pool.query('SELECT * FROM students WHERE id = $1', [req.params.id]);
-    if (!rows.length) return res.status(404).json({ error: 'Student not found' });
-    res.json(rows[0]);
-  } catch (err) {
-    res.status(500).json({ error: 'Failed to fetch student' });
+    if (!rows.length) {
+      return res.status(404).json({ error: 'Student not found' });
+    }
+    return res.json(rows[0]);
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ error: 'Failed to fetch student' });
   }
 });
 
-// ── POST create student ──────────────────────────────────────────────────────
 app.post('/api/students', async (req, res) => {
   const { name, email, phone, grade, section, age, gender, address, joined_on } = req.body;
-  if (!name || !email || !grade)
+
+  if (!name || !email || !grade) {
     return res.status(400).json({ error: 'Name, email and grade are required' });
+  }
 
   try {
     const { rows } = await pool.query(
-      `INSERT INTO students (name,email,phone,grade,section,age,gender,address,joined_on)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
-      [name, email, phone||null, grade, section||null, age||null, gender||null, address||null, joined_on||null]
+      `INSERT INTO students (name, email, phone, grade, section, age, gender, address, joined_on)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
+      [name, email, phone || null, grade, section || null, age || null, gender || null, address || null, joined_on || null]
     );
-    res.status(201).json(rows[0]);
-  } catch (err) {
-    if (err.code === '23505') return res.status(409).json({ error: 'Email already exists' });
-    console.error(err);
-    res.status(500).json({ error: 'Failed to create student' });
+
+    return res.status(201).json(rows[0]);
+  } catch (error) {
+    if (error.code === '23505') {
+      return res.status(409).json({ error: 'Email already exists' });
+    }
+
+    console.error(error);
+    return res.status(500).json({ error: 'Failed to create student' });
   }
 });
 
-// ── PUT update student ───────────────────────────────────────────────────────
 app.put('/api/students/:id', async (req, res) => {
   const { name, email, phone, grade, section, age, gender, address, joined_on } = req.body;
-  if (!name || !email || !grade)
+
+  if (!name || !email || !grade) {
     return res.status(400).json({ error: 'Name, email and grade are required' });
+  }
 
   try {
     const { rows } = await pool.query(
-      `UPDATE students SET name=$1,email=$2,phone=$3,grade=$4,section=$5,
-       age=$6,gender=$7,address=$8,joined_on=$9 WHERE id=$10 RETURNING *`,
-      [name, email, phone||null, grade, section||null, age||null, gender||null, address||null, joined_on||null, req.params.id]
+      `UPDATE students
+       SET name = $1, email = $2, phone = $3, grade = $4, section = $5,
+           age = $6, gender = $7, address = $8, joined_on = $9
+       WHERE id = $10
+       RETURNING *`,
+      [name, email, phone || null, grade, section || null, age || null, gender || null, address || null, joined_on || null, req.params.id]
     );
-    if (!rows.length) return res.status(404).json({ error: 'Student not found' });
-    res.json(rows[0]);
-  } catch (err) {
-    if (err.code === '23505') return res.status(409).json({ error: 'Email already exists' });
-    res.status(500).json({ error: 'Failed to update student' });
+
+    if (!rows.length) {
+      return res.status(404).json({ error: 'Student not found' });
+    }
+
+    return res.json(rows[0]);
+  } catch (error) {
+    if (error.code === '23505') {
+      return res.status(409).json({ error: 'Email already exists' });
+    }
+
+    console.error(error);
+    return res.status(500).json({ error: 'Failed to update student' });
   }
 });
 
-// ── DELETE student ───────────────────────────────────────────────────────────
 app.delete('/api/students/:id', async (req, res) => {
   try {
     const { rowCount } = await pool.query('DELETE FROM students WHERE id = $1', [req.params.id]);
-    if (!rowCount) return res.status(404).json({ error: 'Student not found' });
-    res.json({ message: 'Student deleted' });
-  } catch (err) {
-    res.status(500).json({ error: 'Failed to delete student' });
+    if (!rowCount) {
+      return res.status(404).json({ error: 'Student not found' });
+    }
+
+    return res.json({ message: 'Student deleted' });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ error: 'Failed to delete student' });
   }
 });
 
-// ── GET stats ────────────────────────────────────────────────────────────────
-app.get('/api/stats', async (req, res) => {
+app.get('/api/stats', async (_req, res) => {
   try {
     const [total, byGrade] = await Promise.all([
       pool.query('SELECT COUNT(*) FROM students'),
-      pool.query('SELECT grade, COUNT(*) as count FROM students GROUP BY grade ORDER BY grade')
+      pool.query('SELECT grade, COUNT(*) AS count FROM students GROUP BY grade ORDER BY grade'),
     ]);
-    res.json({ total: parseInt(total.rows[0].count), byGrade: byGrade.rows });
-  } catch (err) {
-    res.status(500).json({ error: 'Failed to fetch stats' });
+
+    return res.json({
+      total: Number.parseInt(total.rows[0].count, 10),
+      byGrade: byGrade.rows,
+    });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ error: 'Failed to fetch stats' });
   }
 });
 
-// ── Fallback → frontend index ─────────────────────────────────────────────────
-app.get('*', (_req, res) => {
-  res.sendFile(path.join(__dirname, '../../frontend/index.html'));
+app.get('/login', (_req, res) => {
+  res.sendFile(path.join(frontendDir, 'login.html'));
 });
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Server running → http://localhost:${PORT}`));
+app.get('/', serveProtectedPage('index.html'));
+app.get('/index.html', serveProtectedPage('index.html'));
+
+app.use('/css', express.static(path.join(frontendDir, 'css')));
+app.use('/js', express.static(path.join(frontendDir, 'js')));
+app.use('/images', express.static(path.join(frontendDir, 'images')));
+
+app.get('*', (req, res) => {
+  if (req.path.startsWith('/api/')) {
+    return res.status(404).json({ error: 'Not found' });
+  }
+
+  if (!isAuthenticatedRequest(req)) {
+    return res.redirect('/login');
+  }
+
+  return res.sendFile(path.join(frontendDir, 'index.html'));
+});
+
+if (require.main === module) {
+  const port = process.env.PORT || 3000;
+  app.listen(port, () => {
+    console.log(`Server running at http://localhost:${port}`);
+  });
+}
 
 module.exports = app;

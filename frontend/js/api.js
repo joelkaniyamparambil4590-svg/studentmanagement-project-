@@ -6,12 +6,29 @@
 const API_BASE = '/api';
 
 async function apiFetch(path, options = {}) {
+  const token = localStorage.getItem('edu_token');
+  const headers = {
+    'Content-Type': 'application/json',
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...(options.headers || {}),
+  };
+
   const response = await fetch(API_BASE + path, {
-    headers: { 'Content-Type': 'application/json' },
+    headers,
     ...options,
   });
 
-  const data = await response.json();
+  const data = await response.json().catch(() => ({}));
+
+  if (response.status === 401) {
+    localStorage.removeItem('edu_token');
+    localStorage.removeItem('edu_username');
+    if (window.location.pathname !== '/login') {
+      window.location.href = '/login';
+    }
+    throw new Error(data.error || 'Your session has expired. Please sign in again.');
+  }
+
   if (!response.ok) throw new Error(data.error || 'Request failed');
   return data;
 }
@@ -51,4 +68,8 @@ async function deleteStudent(id) {
 
 async function fetchStats() {
   return apiFetch('/stats');
+}
+
+async function fetchSession() {
+  return apiFetch('/session');
 }

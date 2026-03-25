@@ -143,7 +143,7 @@
 
       <div class="login-footer">
         EduTrack v1.0 &bull; School Admin Portal<br />
-        Secured with JWT Authentication
+        Secured admin access
       </div>
     </div>
   </section>
@@ -187,7 +187,7 @@
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Login failed');
-      localStorage.setItem('edu_token',    data.token);
+      localStorage.setItem('edu_token', data.token);
       localStorage.setItem('edu_username', data.username);
       window.location.href = '/';
     } catch (err) {
